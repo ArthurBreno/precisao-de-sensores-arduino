@@ -1,131 +1,107 @@
 /*
-  codigo para mini datalogger
-  portas utilizadas pelos borns:
-  born 1 - digital 3 - Ship
-  born 2 - Analogico 0 - RTC
-  born 3 - Analogico 2 - "antes"
-  born 4 - Analogico 1 - "depois"
- IMPORTANTE - Todos os borns seguem o mesmo padrão de pinagem: da esquerda para a direita olhando para o buraco que bota o fio:
-  conecção 1 - Vcc (todos com 5 volts)
-  conecção 2 - Data (borns 1,3 e 4 concetados a porta de dados Digital, born 2 conectado a porta de dados analogica)
-  conecção 3 - Gnd (todos os GNDs da placa estão conectados entre si então tanto faz)
+Codigo desenvolvido por: Arhur Breno
+Data: 20/12/2022
+
+projeto desenvolvido utilizando datalogger shield V1.0
+LER README.lmd
 */
 
-/*
-CABEÇALHO SOBRE CALCULO DA UMIDADE RELATIVA
-definicao 
-ts - temperatura do bulbo seco
-tu - temperatura do bulbo umido
-ea - pressao atual de vapor
-esTU - pressao de vapor saturado do bulbo umido
-esTS - pressao de vapor saturado do bulbo seco
-ur - umidade relativa
-
-y - 8.0 * 10 ^-4
-pATM - 0.94 * 10 ^5
-ea = esTU - (y x pATM x (Ts - Tu))
-esTS = a x 10 ^ ((7.5 * ts) / (237.3 + ts)
-esTU = a x 10 ^ ((7.5 * tu) / (237.3 + tu)
-ur = ea / esTS
-
-referencia: http://www.leb.esalq.usp.br/leb/aulas/lce200/Cap6.pdf
-
-ordem de calculo	- calcular esTU
-					        - calcular esTS
-      			    	- calcular ea
-                  - calcular ur
-*/
-
-#include <SPI.h>  // Biblioteca de comunicação SPI Nativa
-#include <SD.h>   // Biblioteca de comunicação com cartão SD Nativa
-#include <DHT.h>  //Incluindo a biblioteca DHT
+#include <SPI.h>  
+#include <SD.h>   
+#include <DHT.h> 
 #include <Wire.h>
-#include <TimeLib.h>    // biblioteca auxiliar para o RTC
-#include <DS1307RTC.h>  // bilbioteca correta para para o RTC
-#include <OneWire.h>    // BIBLIOTECA AUXILIAR DO DALLAS
+#include <TimeLib.h>   
+#include <DS1307RTC.h>  
+#include <OneWire.h>   
 #include <DallasTemperature.h>
 
 //------------------------------------------------------
 //#define DHT22pino 3
-//#define ONE_WIRE_BUS 3
+#define DHT211pino 3
+#define ONE_WIRE_BUS 4
+
+//DHT dhtP11(DHT11pino, DHT22)
+DHT dhtP22(DHT22pino, DHT22);
+
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);  
+
+uint8_t ntcBulboSeco = A1;
+uint8_t ntcBulboUmido = A0;
 
 //------------------------------------------------------
-//DHT dhtP22(DHT22pino, DHT22);
-
-//OneWire oneWire(ONE_WIRE_BUS);
-//DallasTemperature sensors(&oneWire);
-
-//------------------------------------------------------
-float vetorDados[50];
-float var = 0;
-File dataFile;
-uint8_t contadorErros = 0;
-float mediaFinal = 0;
-float amplitudadeFinal = 0;
-float desvioPadraoFinal = 0;
+float vetorDados[50];			// inicialização do vetor que irá armazenar os valores que serão analisados pela função analisarDados()
+float var = 0;				// variavel que irá armazenar os valores dos sensores    
+File dataFile;				// arquivo utilizado para gravar os valores no cartão SD
+uint8_t contadorErros = 0;		// variavel utilizada para contar o número de leituras fora do intervalo escolhido
+float mediaFinal = 0;			// variavel modificada somente na função analisar dados para armazenar valor da média
+float amplitudadeFinal = 0;		// variavel modificada somente na função analisar dados para armazenar valor da amplitude dos valores no vetor
+float desvioPadraoFinal = 0;		// variavel modificada somente na função analisar dados para armazenar valor do desvio padrão
 float tempBulboSeco = 0;
 float tempBulboUmido = 0;
 
 //-----------------------------------------------------
 
 void setup() {
-  // pinod digitais - positivos - A1/5 - A2/6 ---- negativos - A1/7 - A2/8
-  pinMode(3, OUTPUT);
-  //
-  digitalWrite(3, HIGH);
-  //
   Serial.begin(9600);
   delay(1000);
-  pinMode(A0, INPUT);
-  pinMode(A1, INPUT);
+  pinMode(ntcBulboUmido, INPUT);
+  pinMode(ntcBulboSeco, INPUT);
   Serial.println(1);
   //------------------------------------------------------
-  //dhtP22.begin();
-  //sensors.begin();
+  dhtP22.begin();
+  sensors.begin();
   delay(100);
   Serial.println(2);
   SD.begin(10);
   delay(100);
-  dataFile = SD.open("test.txt", FILE_WRITE);
+	
+  dataFile = SD.open("test.txt", FILE_WRITE);	// verificar inicialização do cartão SD, e caso haja reinicialização do microcontrolador
   delay(100);
   if (dataFile) {
     dataFile.println("init");
     dataFile.close();
   }
+	
   delay(100);
   //------------------------------------------------------
 }
 void loop() {
+	
   SD.begin(10);
   //gravar hora no SD
-  dataFile = SD.open("test.txt", FILE_WRITE);
+  dataFile = SD.open("test.txt", FILE_WRITE);	//armazenar data e hora em variavel e 
   tmElements_t tm;
   if (dataFile) {
-    Serial.println("v hora");
     if (RTC.read(tm)) {
-      String a = String(tm.Day) + "/" + String(tm.Month) + "/" + String(tmYearToCalendar(tm.Year)) + " " + String(tm.Hour) + ":" + String(tm.Minute) + ",";
-      dataFile.print(a);
+      Serial.println("v hora");
+      String dataHora = String(tm.Day) + "/" + String(tm.Month) + "/" + String(tmYearToCalendar(tm.Year)) + " " + String(tm.Hour) + ":" + String(tm.Minute) + ",";
+      dataFile.print(dataHora);
       dataFile.close();
       delay(500);
     }
   } else {
     Serial.print("F hora");
   }
+/*
+o workflow do codigo está construido de forma a ler e gravar SEPARADAMENTE cada sensor, assim para remover algum sensor basta remover ou comentar o espaço
+entre a linha de traços
+*/
   //FIM GRVAR HORA NO SD
   Serial.println(3);
   //-----------------------------------------------------------------------------
-  /* contadorErros = 20;
+  contadorErros = 20;
   var = 0;
   Serial.println(4);
   // definir loop para dhtTemp
   for (uint8_t i = 0; i < 30; i++) {
     var = dhtP22.readTemperature();
-    if (isnan(var) || var <= 1) {
-      contadorErros = contadorErros + 1;
+    if (isnan(var) || var <= 1) { 	// condição para decidir se o valor lido é valido ou não
+      contadorErros = contadorErros + 1; // caso o valor lido seja invalido, será adicionado 1 ao contador de erros
     } else {
-      vetorDados[i] = var;
+      vetorDados[i] = var;		// caso o valor lido seja valido, será 
     }
-    delay(2000);
+    delay(2000);			// conforme recomenda a documentacao do DHT22, o intervalo entre leituras nao deve ser inferior a 2 segundos	
   }
   analisarDados(vetorDados, contadorErros);
 
@@ -144,9 +120,8 @@ void loop() {
     Serial.println("F dhtTemp");
   }
 
-*/
   //------------------------------------------------------------------------------
-  /*
+  
   contadorErros = 20;
   var = 0;
   Serial.println(4);
@@ -177,9 +152,9 @@ void loop() {
   } else {
     Serial.println("F dhtHumi");
   }
-*/
+
   //-------------------------------------------------------------------------------
-  /*
+  
   contadorErros = 0;
   var = 0;
   Serial.println(4);
@@ -194,7 +169,7 @@ void loop() {
     }
     delay(100);
   }
-  Serial.println(contadorErros);
+  
   analisarDados(vetorDados, contadorErros);
 
   dataFile = SD.open("test.txt", FILE_WRITE);
@@ -212,7 +187,7 @@ void loop() {
   } else {
     Serial.println("f dallas");
   }
-  */
+  
   /// //-------------------------------------------------------------------------------
 
   contadorErros = 0;
@@ -221,9 +196,9 @@ void loop() {
   // definir loop para NTC novo
   delay(1000);
   for (uint8_t i = 0; i < 50; i++) {
-    var = (analogRead(A1) * 5.0) / (1023.0);
-    var = (10000.0 / ((5.10 / var) - 1.0));
-    var = (-0.00000000000958485951 * pow(var, 3)) + (0.0000004754241223026 * pow(var, 2)) + (-0.008998819476625 * var) + (77.7144937226049);
+    var = (analogRead(ntcBulboSeco) * 5.0) / (1023.0); // conversão do ADC (analog to digital converte) para tensão em volts
+    var = (10000.0 / ((5.10 / var) - 1.0)); // conversão de volts para ohm
+    var = (-0.00000000000958485951 * pow(var, 3)) + (0.0000004754241223026 * pow(var, 2)) + (-0.008998819476625 * var) + (77.7144937226049); // equacao para converter resistencia em temperatura °C(varia de NTC para NTC)
     if (var > 100 || var < 0) {
       contadorErros = contadorErros + 1;
     } else {
@@ -244,9 +219,9 @@ void loop() {
     dataFile.print(",");
     dataFile.close();
     delay(500);
-    Serial.println("v NTC_NOVO");
+    Serial.println("v NTC_bulboSeoc");
   } else {
-    Serial.println("f NTC_NOVO");
+    Serial.println("f NTC_bulboSeoc");
   }
   //---------------------------------------------------------------------------------------------
   contadorErros = 0;
@@ -255,7 +230,7 @@ void loop() {
   // definir loop para NTC VELHO
   digitalWrite(8, HIGH);
   for (uint8_t i = 0; i < 50; i++) {
-    var = (analogRead(A0) * 5.0) / (1023.0);
+    var = (analogRead(ntcBulboUmido) * 5.0) / (1023.0);
     var = (10000.0 / ((5.10 / var) - 1.0));
     var = (-0.00000000001033040468 * pow(var, 3)) + (0.000000494671652376 * pow(var, 2)) + (-0.0091476893610536 * var) + (77.6493119075527);
     if (var > 100 || var < 0) {
@@ -278,9 +253,9 @@ void loop() {
     dataFile.print(",");
     dataFile.close();
     delay(500);
-    Serial.println("v NTC_VELHO");
+    Serial.println("v NTC_bulboUmido");
   } else {
-    Serial.println("f NTC_VELHO");
+    Serial.println("f NTC_bulboUmido");
   }
   //--------------------------------------------------------------------------------------------------------------------------
 
@@ -299,11 +274,11 @@ void loop() {
     tempBulboUmido = 0;
     for (uint8_t i = 0; i < 25; i++) {
       //coleta do valor da temperatura do bulbo umido --  NTC VELHO
-      var = (analogRead(A0) * 5.0) / (1023.0);
+      var = (analogRead(ntcBulboUmido) * 5.0) / (1023.0);
       var = (10000.0 / ((5.10 / var) - 1.0));
       tempBulboUmido = (-0.00000000001033040468 * pow(var, 3)) + (0.000000494671652376 * pow(var, 2)) + (-0.0091476893610536 * var) + (77.6493119075527);
       // coleta do valor da temperatura do bulbo seco -- NTC NOVO
-      var = (analogRead(A1) * 5.0) / (1023.0);
+      var = (analogRead(ntcBulboSeco) * 5.0) / (1023.0);
       var = (10000.0 / ((5.10 / var) - 1.0));
       tempBulboSeco = (-0.00000000000958485951 * pow(var, 3)) + (0.0000004754241223026 * pow(var, 2)) + (-0.008998819476625 * var) + (77.7144937226049);
       if ((tempBulboSeco > 100 || tempBulboSeco < 0) || (tempBulboUmido > 100 || tempBulboUmido < 0)) {
@@ -332,8 +307,6 @@ void loop() {
       vetorDados[i] = (ea / esTS) * 100;
     }
   }
-  digitalWrite(4, LOW);
-  digitalWrite(8, LOW);
 
   analisarDados(vetorDados, contadorErros);
 
@@ -354,7 +327,7 @@ void loop() {
   }
 
   /// //-------------------------------------------------------------------------------
-  /*
+  
   contadorErros = 0;
   var = 0;
   Serial.println(4);
@@ -388,7 +361,7 @@ void loop() {
   } else {
     Serial.println("f LDR");
     }
-*/
+
   //FINALIZAÇÃO DO LOOP-----------------------------------------------------------------------------------
   SD.end();
   delay(300000);  //valor padrao = 1090000
@@ -399,7 +372,6 @@ void analisarDados(float vetor[], uint8_t tam) {
   float media;
   tam = 50 - tam;
   if (tam > 20) {
-    Serial.println("foi");
     //calc media
     for (uint8_t i = 0; i < tam; i++) {
       media = media + vetor[i];
