@@ -3,7 +3,7 @@ Codigo desenvolvido por: Arhur Breno
 Data: 20/12/2022
 
 projeto desenvolvido utilizando datalogger shield V1.0
-LER README.lmd
+LER README.md
 */
 
 #include <SPI.h>  
@@ -193,12 +193,13 @@ entre a linha de traços
   contadorErros = 0;
   var = 0;
   Serial.println(4);
-  // definir loop para NTC novo
+  // definir loop para NTC BulboSeco
   delay(1000);
   for (uint8_t i = 0; i < 50; i++) {
     var = (analogRead(ntcBulboSeco) * 5.0) / (1023.0); // conversão do ADC (analog to digital converte) para tensão em volts
     var = (10000.0 / ((5.10 / var) - 1.0)); // conversão de volts para ohm
-    var = (-0.00000000000958485951 * pow(var, 3)) + (0.0000004754241223026 * pow(var, 2)) + (-0.008998819476625 * var) + (77.7144937226049); // equacao para converter resistencia em temperatura °C(varia de NTC para NTC)
+    var = (-0.00000000000958485951 * pow(var, 3)) + (0.0000004754241223026 * pow(var, 2)) + (-0.008998819476625 * var) + (77.7144937226049);
+	  // equacao para converter resistencia em temperatura °C(varia de NTC para NTC)
     if (var > 100 || var < 0) {
       contadorErros = contadorErros + 1;
     } else {
@@ -219,15 +220,15 @@ entre a linha de traços
     dataFile.print(",");
     dataFile.close();
     delay(500);
-    Serial.println("v NTC_bulboSeoc");
+    Serial.println("v NTC_bulboSeco");
   } else {
-    Serial.println("f NTC_bulboSeoc");
+    Serial.println("f NTC_bulboSeco");
   }
   //---------------------------------------------------------------------------------------------
   contadorErros = 0;
   var = 0;
   Serial.println(4);
-  // definir loop para NTC VELHO
+  // definir loop para NTC BulboUmido
   digitalWrite(8, HIGH);
   for (uint8_t i = 0; i < 50; i++) {
     var = (analogRead(ntcBulboUmido) * 5.0) / (1023.0);
@@ -262,22 +263,24 @@ entre a linha de traços
   contadorErros = 25;
   var = 0;
   Serial.println(4);
+  //loop para calculo da umidade relativa
   uint8_t contadorRepeticaoErros;
   float bulboSecoTempLoop;
   float bulboUmidoTempLoop;
 
-  for (uint8_t i = 0; i < 50; i++) {
+	
+  for (uint8_t i = 0; i < 50; i++) { // loop para atribuir o valor da umidade relativa no vetor, ou adicionar 1 a variavel erro
     contadorRepeticaoErros = 0;
     bulboSecoTempLoop = 0;
     bulboUmidoTempLoop = 0;
     tempBulboSeco = 0;
     tempBulboUmido = 0;
-    for (uint8_t i = 0; i < 25; i++) {
-      //coleta do valor da temperatura do bulbo umido --  NTC VELHO
+    for (uint8_t i = 0; i < 25; i++) { // loop para coletar as temperaturas  individualmente e fazer a media, caso o numero de erros seja infeior a 10
+      //coleta do valor da temperatura do bulbo umido
       var = (analogRead(ntcBulboUmido) * 5.0) / (1023.0);
       var = (10000.0 / ((5.10 / var) - 1.0));
       tempBulboUmido = (-0.00000000001033040468 * pow(var, 3)) + (0.000000494671652376 * pow(var, 2)) + (-0.0091476893610536 * var) + (77.6493119075527);
-      // coleta do valor da temperatura do bulbo seco -- NTC NOVO
+      // coleta do valor da temperatura do bulbo seco
       var = (analogRead(ntcBulboSeco) * 5.0) / (1023.0);
       var = (10000.0 / ((5.10 / var) - 1.0));
       tempBulboSeco = (-0.00000000000958485951 * pow(var, 3)) + (0.0000004754241223026 * pow(var, 2)) + (-0.008998819476625 * var) + (77.7144937226049);
