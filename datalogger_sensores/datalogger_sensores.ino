@@ -16,8 +16,8 @@ LER README.md
 #include <DallasTemperature.h>
 
 //------------------------------------------------------
-//#define DHT22pino 3
-#define DHT211pino 3
+#define DHT22pino 3
+//#define DHT211pino 3
 #define ONE_WIRE_BUS 4
 
 //DHT dhtP11(DHT11pino, DHT22)
@@ -94,12 +94,16 @@ entre a linha de traços
   var = 0;
   Serial.println(4);
   // definir loop para dhtTemp
-  for (uint8_t i = 0; i < 30; i++) {
+  for (uint8_t i = 0; i < 30;) {
     var = dhtP22.readTemperature();
     if (isnan(var) || var <= 1) { 	// condição para decidir se o valor lido é valido ou não
-      contadorErros = contadorErros + 1; // caso o valor lido seja invalido, será adicionado 1 ao contador de erros
+      contadorErros = contadorErros + 1;	    // caso o valor lido seja invalido, será adicionado 1 ao contador de erros	
+      if(contadorErros > 20){
+      	break;
+      }    
     } else {
       vetorDados[i] = var;		// caso o valor lido seja valido, será 
+      i++;	
     }
     delay(2000);			// conforme recomenda a documentacao do DHT22, o intervalo entre leituras nao deve ser inferior a 2 segundos	
   }
@@ -126,12 +130,16 @@ entre a linha de traços
   var = 0;
   Serial.println(4);
   // definir loop para dhtUmi
-  for (uint8_t i = 0; i < 30; i++) {
+  for (uint8_t i = 0; i < 30;) {
     var = dhtP22.readHumidity();
     if ((isnan(var)) || (var <= 1) || (var > 100)) {
       contadorErros = contadorErros + 1;
+      if(contadorErros > 20){
+      	break;
+      }    
     } else {
       vetorDados[i] = var;
+      i++; 
     }
     delay(2000);
   }
@@ -159,13 +167,17 @@ entre a linha de traços
   var = 0;
   Serial.println(4);
   // definir loop para dallas
-  for (uint8_t i = 0; i < 50; i++) {
+  for (uint8_t i = 0; i < 50;) {
     sensors.requestTemperatures();
     var = sensors.getTempCByIndex(0);
     if ((var == -127.00) || (var == 85)) {
       contadorErros = contadorErros + 1;
+      if(contadorErros > 20){
+      	break;
+      }    
     } else {
       vetorDados[i] = var;
+      i++;
     }
     delay(100);
   }
@@ -195,15 +207,19 @@ entre a linha de traços
   Serial.println(4);
   // definir loop para NTC BulboSeco
   delay(1000);
-  for (uint8_t i = 0; i < 50; i++) {
+  for (uint8_t i = 0; i < 50;) {
     var = (analogRead(ntcBulboSeco) * 5.0) / (1023.0); // conversão do ADC (analog to digital converte) para tensão em volts
     var = (10000.0 / ((5.10 / var) - 1.0)); // conversão de volts para ohm
     var = (-0.00000000000958485951 * pow(var, 3)) + (0.0000004754241223026 * pow(var, 2)) + (-0.008998819476625 * var) + (77.7144937226049);
 	  // equacao para converter resistencia em temperatura °C(varia de NTC para NTC)
     if (var > 100 || var < 0) {
       contadorErros = contadorErros + 1;
+      if(contadorErros > 20){
+      	break;
+      } 
     } else {
       vetorDados[i] = var;
+      i++;
     }
   }
 
@@ -230,14 +246,18 @@ entre a linha de traços
   Serial.println(4);
   // definir loop para NTC BulboUmido
   digitalWrite(8, HIGH);
-  for (uint8_t i = 0; i < 50; i++) {
+  for (uint8_t i = 0; i < 50;) {
     var = (analogRead(ntcBulboUmido) * 5.0) / (1023.0);
     var = (10000.0 / ((5.10 / var) - 1.0));
     var = (-0.00000000001033040468 * pow(var, 3)) + (0.000000494671652376 * pow(var, 2)) + (-0.0091476893610536 * var) + (77.6493119075527);
     if (var > 100 || var < 0) {
       contadorErros = contadorErros + 1;
+      if(contadorErros > 20){
+      	break;
+      } 
     } else {
       vetorDados[i] = var;
+      i++;
     }
   }
 
@@ -269,7 +289,7 @@ entre a linha de traços
   float bulboUmidoTempLoop;
 
 	
-  for (uint8_t i = 0; i < 50; i++) { // loop para atribuir o valor da umidade relativa no vetor, ou adicionar 1 a variavel erro
+  for (uint8_t i = 0; i < 50;) { // loop para atribuir o valor da umidade relativa no vetor, ou adicionar 1 a variavel erro
     contadorRepeticaoErros = 0;
     bulboSecoTempLoop = 0;
     bulboUmidoTempLoop = 0;
@@ -293,6 +313,9 @@ entre a linha de traços
     }
     if (contadorRepeticaoErros > 15) {
       contadorErros = contadorErros + 1;
+      if(contadorErros > 20){
+      	break;
+      } 
     } else {
       bulboSecoTempLoop = bulboSecoTempLoop / (25 - contadorRepeticaoErros);
       bulboUmidoTempLoop = bulboUmidoTempLoop / (25 - contadorRepeticaoErros);
@@ -308,6 +331,7 @@ entre a linha de traços
       float ea = esTU - (0.0008 * 94000 * (bulboSecoTempLoop - bulboUmidoTempLoop));
       // fim calcular ea
       vetorDados[i] = (ea / esTS) * 100;
+      i++;
     }
   }
 
@@ -335,14 +359,18 @@ entre a linha de traços
   var = 0;
   Serial.println(4);
   // definir loop para LDR
-  for (uint8_t i = 0; i < 50; i++) {
+  for (uint8_t i = 0; i < 50;) {
     var = (analogRead(A2) * 5.10) / (1024);
     var = (10000 / ((5.10 / var) - 1));
     var = 75400000 * pow(var, -1.68);
     if (var < 0) {
       contadorErros = contadorErros + 1;
+      if(contadorErros > 20){
+      	break;
+      } 
     } else {
       vetorDados[i] = var;
+      i++;
     }
     delay(500);
   }
